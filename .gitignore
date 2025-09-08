@@ -1,0 +1,11 @@
+# General
+/.git/
+/coverage*.txt
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Go
+bin/
+*.test

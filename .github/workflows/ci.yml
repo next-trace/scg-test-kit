@@ -1,0 +1,135 @@
+name: scg-test-kit-ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.go-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine Go version (STRICT)
+        id: go-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          GO_VERSION=""
+          if [[ -f scg ]]; then
+            GO_VERSION="$(grep -E '^GO_VERSION=\$\{GO_VERSION:-"[0-9.]+"\}' scg | cut -d '"' -f2 || true)"
+          fi
+          if [[ -z "${GO_VERSION}" && -f go.mod ]]; then
+            MOD_VER="$(grep -E '^go [0-9.]+' go.mod | awk '{print $2}' | head -n1 || true)"
+            if [[ -n "${MOD_VER}" ]]; then
+              GO_VERSION="$(echo "${MOD_VER}" | sed -E 's/([0-9]+\.[0-9]+).*/\1/')"
+            fi
+          fi
+          [[ -n "${GO_VERSION}" ]] || { echo "ERROR: cannot determine Go version"; exit 1; }
+          echo "version=${GO_VERSION}" >> "$GITHUB_OUTPUT"
+
+  guardrails:
+    name: Guardrails
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scg doctor:guardrails
+
+  build:
+    name: Build
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/go-setup
+        with:
+          go-version: ${{ needs.setup.outputs.go-version }}
+      - run: ./scg build
+
+  test:
+    name: Test
+    needs: [ setup, build ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/go-setup
+        with:
+          go-version: ${{ needs.setup.outputs.go-version }}
+      - run: ./scg test
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.txt
+          if-no-files-found: ignore
+
+  lint:
+    name: Lint
+    needs: [ setup, build ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/go-setup
+        with:
+          go-version: ${{ needs.setup.outputs.go-version }}
+          cache-golangci: "true"
+      - run: ./scg install-tools
+      - run: ./scg lint
+
+  security:
+    name: Security
+    needs: [ setup, build ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/go-setup
+        with:
+          go-version: ${{ needs.setup.outputs.go-version }}
+      - run: ./scg install-tools
+      - run: ./scg security
+
+  summary:
+    name: CI Summary
+    needs: [ setup, guardrails, build, test, lint, security ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "## CI Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Job Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Setup:          ${{ needs.setup.result }}"          >> "$GITHUB_STEP_SUMMARY"
+          echo "- Guardrails:     ${{ needs.guardrails.result }}"     >> "$GITHUB_STEP_SUMMARY"
+          echo "- Build:          ${{ needs.build.result }}"          >> "$GITHUB_STEP_SUMMARY"
+          echo "- Test:           ${{ needs.test.result }}"           >> "$GITHUB_STEP_SUMMARY"
+          echo "- Lint:           ${{ needs.lint.result }}"           >> "$GITHUB_STEP_SUMMARY"
+          echo "- Security:       ${{ needs.security.result }}"       >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fancy SCG Summary (NON-BLOCKING)
+        if: always()
+        continue-on-error: true
+        run: |
+          if [[ -x "./scg" ]]; then
+            ./scg summary >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "_SCG summary skipped (scg not available)_" >> "$GITHUB_STEP_SUMMARY"
+          fi

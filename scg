@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# ===== Variables (keep ONLY vars here) =====
+GO_VERSION=${GO_VERSION:-"1.25.5"}
+GOLANGCI_LINT_VERSION=${GOLANGCI_LINT_VERSION:-"v2.7.2"}
+GOVULNCHECK_VERSION=${GOVULNCHECK_VERSION:-"v1.1.4"}
+GOSEC_VERSION=${GOSEC_VERSION:-"v2.22.0"}
+GOIMPORTS_VERSION=${GOIMPORTS_VERSION:-"v0.29.0"}
+GOLANGCI_LINT=${GOLANGCI_LINT:-golangci-lint}
+GOVULNCHECK=${GOVULNCHECK:-govulncheck}
+GOSEC=${GOSEC:-gosec}
+GOIMPORTS=${GOIMPORTS:-goimports}
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# ===== Load functions =====
+if [[ -f "${ROOT_DIR}/scripts/functions.sh" ]]; then
+  source "${ROOT_DIR}/scripts/functions.sh"
+else
+  echo "Error: scripts/functions.sh not found."
+  exit 1
+fi
+# ===== Minimal bootstrap (CRITICAL) =====
+# Ensure tools installed into $GOBIN are discoverable.
+# CI sets GOBIN, so without this PATH update you get "command not found".
+fn_ensure_gobin_on_path
+# ===== Menu (help) =====
+menu() {
+  cat <<MENU
+scg — Test Kit Library helper
+Usage: ./scg <command>
+Basics:
+  deps                      Download and tidy dependencies
+  fmt                       Format Go files (gofmt, goimports)
+  build                     Build the library
+  test [pkg]                Run tests with race detection
+  bench [pkg]               Run benchmarks
+  clean                     Clean build and test caches
+Quality:
+  lint                      Run golangci-lint
+  lint-fix                  Run golangci-lint --fix
+  security                  Run security checks (govulncheck, gosec)
+  coverage                  Generate and view coverage report
+  docs                      Generate documentation
+Ops:
+  doctor                    Run all health checks
+  doctor:all                Run all quality checks (Alias for ci)
+  ci                        Run full CI suite
+  install-tools             Install required tools
+Help:
+  help                      Show this menu
+MENU
+}
+# ===== Dispatch =====
+main() {
+  local cmd="${1:-help}"; shift || true
+  case "$cmd" in
+    help|-h|--help)     menu ;;
+    deps)               fn_deps ;;
+    fmt)                fn_fmt "$@" ;;
+    build)              fn_build ;;
+    test)               fn_test "$@" ;;
+    bench)              fn_bench "$@" ;;
+    clean)              fn_clean ;;
+    lint)               fn_lint ;;
+    lint-fix)           fn_lint_fix ;;
+    security)           fn_security ;;
+    coverage)           fn_coverage ;;
+    docs)               fn_docs ;;
+    doctor)             fn_doctor ;;
+    doctor:all)         fn_ci ;;
+    doctor:guardrails)  fn_guardrails ;;
+    ci)                 fn_ci ;;
+    summary)            fn_summary ;;
+    install-tools)      fn_install_tools ;;
+    *) echo "Unknown command: $cmd"; menu; exit 1 ;;
+  esac
+}
+main "$@"

@@ -1,0 +1,57 @@
+# .github/actions/go-setup/action.yml
+name: Go Setup (SCG)
+description: Standard Go setup + caching + tool PATH bootstrap for SCG repos
+
+inputs:
+  go-version:
+    required: true
+    description: Go version to install (e.g. 1.25)
+  gobin:
+    required: false
+    default: ".cache/go-bin"
+    description: Relative path (from workspace) for GOBIN
+  cache-golangci:
+    required: false
+    default: "false"
+    description: Cache ~/.cache/golangci-lint (true/false)
+
+runs:
+  using: composite
+  steps:
+    - name: Set GOBIN
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "GOBIN=${{ github.workspace }}/${{ inputs.gobin }}" >> "$GITHUB_ENV"
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: true
+
+    - name: Add GOBIN to PATH
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "${{ github.workspace }}/${{ inputs.gobin }}"
+        echo "${{ github.workspace }}/${{ inputs.gobin }}" >> "${GITHUB_PATH}"
+
+    - name: Cache Go tools (GOBIN)
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/${{ inputs.gobin }}
+        key: ${{ runner.os }}-go-tools-go${{ inputs.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-tools-go${{ inputs.go-version }}-
+          ${{ runner.os }}-go-tools-
+
+    - name: Cache golangci-lint
+      if: ${{ inputs.cache-golangci == 'true' }}
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/golangci-lint
+        key: ${{ runner.os }}-golangci-lint-go${{ inputs.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-golangci-lint-go${{ inputs.go-version }}-
+          ${{ runner.os }}-golangci-lint-

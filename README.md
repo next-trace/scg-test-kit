@@ -86,7 +86,7 @@ Provide one of these contract-only patterns (pick the variant that matches your 
 
 Variant A — If scg-database exposes admin + migrations via contract:
 ```go
-// in service repo: testsupport/ephemeraldb/ephemeral.go
+
 package ephemeraldb
 
 import (
@@ -141,7 +141,7 @@ func BuildFromEnv(t *testing.T) (db_contract.Connection, func(), error) {
 
 Variant B — If scg-database provides a single contract helper for ephemeral DB:
 ```go
-// in service repo: testsupport/ephemeraldb/ephemeral.go
+
 package ephemeraldb
 
 import (

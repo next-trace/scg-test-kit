@@ -21,6 +21,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Required for private Go modules (org-wide token in secrets.SCG_READ_TOKEN)
+      - name: Configure private Go modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "GOPRIVATE=github.com/next-trace/*" >> "$GITHUB_ENV"
+          echo "GONOSUMDB=github.com/next-trace/*" >> "$GITHUB_ENV"
+          git config --global url."https://${{ secrets.SCG_READ_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"  
+
       - name: Extract Go version from scg script
         id: go-version
         shell: bash

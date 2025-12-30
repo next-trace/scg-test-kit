@@ -112,11 +112,11 @@ func Get(t testing.TB, h *Harness, path string, target any) *http.Response {
 }
 
 // Post performs a POST request with a JSON body and decodes the response into the target value.
-func Post(t testing.TB, h *Harness, path string, body any, target any) *http.Response {
+func Post(t testing.TB, h *Harness, path string, body any, target any) {
 	val, ok := h.Resource(HTTPResourceName)
 	if !ok {
 		t.Fatal("HTTPServer resource not available")
-		return nil
+		return
 	}
 	srv, ok := val.(interface {
 		BaseURL() string
@@ -124,7 +124,7 @@ func Post(t testing.TB, h *Harness, path string, body any, target any) *http.Res
 	})
 	if !ok {
 		t.Fatal("HTTPServer resource does not implement required interface")
-		return nil
+		return
 	}
 
 	var bodyReader io.Reader
@@ -134,12 +134,11 @@ func Post(t testing.TB, h *Harness, path string, body any, target any) *http.Res
 	resp, err := srv.Client().Post(srv.BaseURL()+path, "application/json", bodyReader)
 	if err != nil {
 		t.Fatalf("POST request failed: %v", err)
-		return nil
+		return
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if target != nil {
 		DecodeJSON(t, resp.Body, target)
 	}
-	return resp
 }

@@ -58,20 +58,14 @@ func TestServer_Helpers(t *testing.T) {
 	t.Run("Post", func(t *testing.T) {
 		var res map[string]string
 		body := map[string]string{"hello": "world"}
-		resp := srv.Post(t, "/", body, &res)
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("expected 200, got %d", resp.StatusCode)
-		}
+		srv.Post(t, "/", body, &res)
 		if res["hello"] != "world" {
 			t.Errorf("expected world, got %s", res["hello"])
 		}
 	})
 
 	t.Run("Post_NoBody", func(t *testing.T) {
-		resp := srv.Post(t, "/", nil, nil)
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("expected 200, got %d", resp.StatusCode)
-		}
+		srv.Post(t, "/", nil, nil)
 	})
 }
 

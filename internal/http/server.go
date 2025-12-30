@@ -73,7 +73,7 @@ func (s *Server) Get(t testing.TB, path string, target any) *http.Response {
 }
 
 // Post performs a POST request with a JSON body and decodes the response into the target value.
-func (s *Server) Post(t testing.TB, path string, body any, target any) *http.Response {
+func (s *Server) Post(t testing.TB, path string, body any, target any) {
 	var bodyReader io.Reader
 	if body != nil {
 		bodyReader = EncodeJSON(t, body)
@@ -82,7 +82,7 @@ func (s *Server) Post(t testing.TB, path string, body any, target any) *http.Res
 	response, err := s.client.Post(s.baseURL+path, "application/json", bodyReader)
 	if err != nil {
 		t.Fatalf("POST request failed: %v", err)
-		return nil
+		return
 	}
 	defer func() {
 		if response != nil && response.Body != nil {
@@ -93,5 +93,4 @@ func (s *Server) Post(t testing.TB, path string, body any, target any) *http.Res
 	if target != nil {
 		DecodeJSON(t, response.Body, target)
 	}
-	return response
 }

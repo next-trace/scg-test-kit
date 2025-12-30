@@ -6,22 +6,21 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/next-trace/scg-test-kit/suite"
-	"github.com/next-trace/scg-test-kit/testkit"
+	"github.com/next-trace/scg-test-kit"
 )
 
 func Test_Ping_Example(t *testing.T) {
-	tk := suite.TestCase(t,
-		testkit.WithGRPCRegister(func(mux *http.ServeMux) {
-			mux.HandleFunc("/ping", func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte("pong"))
-			})
-		}),
-		testkit.WithInMemoryBus(),
-	)
+	h := testkit.NewBrowserHarness(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/ping" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("pong"))
+	}))
 
-	if tk.GRPC().ClientConn() == nil {
-		t.Fatal("nil client")
+	resp := testkit.Get(t, h, "/ping", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 }

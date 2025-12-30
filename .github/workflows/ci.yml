@@ -57,6 +57,19 @@ jobs:
       - uses: ./.github/actions/go-setup
         with:
           go-version: ${{ needs.setup.outputs.go-version }}
+      - name: Guard - Verify Go Version (from scg or go.mod)
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_VERSION="${{ needs.setup.outputs.go-version }}"
+          gov="$(go env GOVERSION)"
+          if [[ "$gov" != "go${EXPECTED_VERSION}"* ]]; then
+            echo "❌ Go version mismatch!"
+            echo "   Expected: go${EXPECTED_VERSION}"
+            echo "   Got:      $gov"
+            exit 1
+          fi
+          echo "✅ Go version check passed: $gov"
       - run: ./scg build
 
   test:
@@ -68,6 +81,19 @@ jobs:
       - uses: ./.github/actions/go-setup
         with:
           go-version: ${{ needs.setup.outputs.go-version }}
+      - name: Guard - Verify Go Version (from scg or go.mod)
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_VERSION="${{ needs.setup.outputs.go-version }}"
+          gov="$(go env GOVERSION)"
+          if [[ "$gov" != "go${EXPECTED_VERSION}"* ]]; then
+            echo "❌ Go version mismatch!"
+            echo "   Expected: go${EXPECTED_VERSION}"
+            echo "   Got:      $gov"
+            exit 1
+          fi
+          echo "✅ Go version check passed: $gov"
       - run: ./scg test
       - if: always()
         uses: actions/upload-artifact@v4

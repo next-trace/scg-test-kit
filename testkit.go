@@ -18,8 +18,10 @@ type Option func(*Harness)
 // HTTPResourceName is the name used to store the HTTP server in harness resources.
 const HTTPResourceName = "HTTPServer"
 
-// NewHarness creates a new Harness with the given options.
-func NewHarness(t testing.TB, opts ...Option) *Harness {
+// New creates a new Harness with the given options.
+// It automatically registers cleanup with the testing.TB.
+func New(t testing.TB, opts ...Option) *Harness {
+	t.Helper()
 	h := harness.New(t)
 	for _, opt := range opts {
 		opt(h)
@@ -27,19 +29,31 @@ func NewHarness(t testing.TB, opts ...Option) *Harness {
 	return h
 }
 
+// NewHarness creates a new Harness with the given options.
+// It is an alias for New.
+func NewHarness(t testing.TB, opts ...Option) *Harness {
+	t.Helper()
+	return New(t, opts...)
+}
+
 // NewUnitHarness creates a Harness optimized for unit tests.
+// It is semantically identical to New but indicates the intent of a unit test.
 func NewUnitHarness(t testing.TB, opts ...Option) *Harness {
-	return NewHarness(t, opts...)
+	t.Helper()
+	return New(t, opts...)
 }
 
 // NewIntegrationHarness creates a Harness for integration tests.
+// It is semantically identical to New but indicates the intent of an integration test.
 func NewIntegrationHarness(t testing.TB, opts ...Option) *Harness {
-	return NewHarness(t, opts...)
+	t.Helper()
+	return New(t, opts...)
 }
 
 // NewBrowserHarness creates a Harness for browser-like HTTP tests.
 func NewBrowserHarness(t testing.TB, handler http.Handler, opts ...Option) *Harness {
-	h := NewHarness(t, opts...)
+	t.Helper()
+	h := New(t, opts...)
 	if handler != nil {
 		WithHTTPServer(handler)(h)
 	}
@@ -74,16 +88,19 @@ func WithHTTPServer(handler http.Handler) Option {
 
 // EncodeJSON encodes the given value into an io.Reader.
 func EncodeJSON(t testing.TB, value any) io.Reader {
+	t.Helper()
 	return http_internal.EncodeJSON(t, value)
 }
 
 // DecodeJSON decodes the JSON from the reader into the target value.
 func DecodeJSON(t testing.TB, reader io.Reader, target any) {
+	t.Helper()
 	http_internal.DecodeJSON(t, reader, target)
 }
 
 // Get performs a GET request to the given path and decodes the response into the target value.
 func Get(t testing.TB, h *Harness, path string, target any) *http.Response {
+	t.Helper()
 	val, ok := h.Resource(HTTPResourceName)
 	if !ok {
 		t.Fatal("HTTPServer resource not available")
@@ -113,6 +130,7 @@ func Get(t testing.TB, h *Harness, path string, target any) *http.Response {
 
 // Post performs a POST request with a JSON body and decodes the response into the target value.
 func Post(t testing.TB, h *Harness, path string, body any, target any) {
+	t.Helper()
 	val, ok := h.Resource(HTTPResourceName)
 	if !ok {
 		t.Fatal("HTTPServer resource not available")

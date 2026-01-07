@@ -7,13 +7,27 @@ import (
 )
 
 func TestHarness_Presets(t *testing.T) {
-	t.Run("NewUnitHarness", func(t *testing.T) {
-		h := NewUnitHarness(t)
+	t.Run("New", func(t *testing.T) {
+		h := New(t)
 		if h == nil {
 			t.Fatal("expected harness to be created")
 		}
 		if h.T() != t {
 			t.Errorf("expected T() to return testing.TB")
+		}
+	})
+
+	t.Run("NewHarness", func(t *testing.T) {
+		h := NewHarness(t)
+		if h == nil {
+			t.Fatal("expected harness to be created")
+		}
+	})
+
+	t.Run("NewUnitHarness", func(t *testing.T) {
+		h := NewUnitHarness(t)
+		if h == nil {
+			t.Fatal("expected harness to be created")
 		}
 	})
 
@@ -48,7 +62,7 @@ func TestHarness_Presets(t *testing.T) {
 }
 
 func TestHarness_ResourceAPI(t *testing.T) {
-	h := NewHarness(t)
+	h := New(t)
 
 	t.Run("WithResource and Resource", func(t *testing.T) {
 		WithResource("test", "value", nil)(h)
@@ -70,6 +84,50 @@ func TestHarness_ResourceAPI(t *testing.T) {
 		_, ok := Resource[string](h, "int")
 		if ok {
 			t.Error("expected ok=false for wrong type resource")
+		}
+	})
+}
+
+func TestHarness_Cleanup(t *testing.T) {
+	t.Run("Cleanup is called", func(t *testing.T) {
+		cleaned := false
+		{
+			h := New(t)
+			h.RegisterCleanup(func() {
+				cleaned = true
+			})
+			h.Cleanup()
+		}
+		if !cleaned {
+			t.Error("expected cleanup to be called")
+		}
+	})
+
+	t.Run("Cleanup is idempotent", func(t *testing.T) {
+		count := 0
+		{
+			h := New(t)
+			h.RegisterCleanup(func() {
+				count++
+			})
+			h.Cleanup()
+			h.Cleanup()
+		}
+		if count != 1 {
+			t.Errorf("expected cleanup to run once, got %d", count)
+		}
+	})
+
+	t.Run("Cleanup order is LIFO", func(t *testing.T) {
+		var order []int
+		{
+			h := New(t)
+			h.RegisterCleanup(func() { order = append(order, 1) })
+			h.RegisterCleanup(func() { order = append(order, 2) })
+			h.Cleanup()
+		}
+		if len(order) != 2 || order[0] != 2 || order[1] != 1 {
+			t.Errorf("expected [2 1], got %v", order)
 		}
 	})
 }
@@ -139,7 +197,7 @@ func TestHarness_HTTPHelpers(t *testing.T) {
 }
 
 func TestHarness_HTTPHelpers_NoServer(t *testing.T) {
-	h := NewHarness(t)
+	h := New(t)
 
 	// We use a mock testing.TB to capture the Fatal call
 	mockT := &mockTB{TB: t}

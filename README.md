@@ -24,15 +24,30 @@ go get github.com/next-trace/scg-test-kit
 
 ## 5. Quickstart
 
-### Generic Resource Injection with WithResource
+### Unit Test (No External Resources)
 ```go
-func Test_CustomResource(t *testing.T) {
+func Test_Unit(t *testing.T) {
+    // 1. Create a harness
+    // You can also use testkit.NewUnitHarness(t) for semantic clarity
+    h := testkit.New(t)
+
+    // 2. Use it for shared helpers or cleanup
+    h.RegisterCleanup(func() {
+        // cleanup logic
+    })
+}
+```
+
+### Integration Test (With External Resources)
+```go
+func Test_Integration(t *testing.T) {
     // 1. Service provisions its own dependency
     client := MyClient{Addr: "localhost:1234"}
     cleanup := func() error { return client.Close() }
 
     // 2. Inject into Harness
-    h := testkit.NewHarness(t,
+    // You can also use testkit.NewIntegrationHarness(t) for semantic clarity
+    h := testkit.New(t,
         testkit.WithResource("myClient", client, cleanup),
     )
     
@@ -42,7 +57,15 @@ func Test_CustomResource(t *testing.T) {
 }
 ```
 
-## 6. Running Tests
+## 6. MIGRATION GUIDE (v0.2.2+)
+
+If you are upgrading from an older version, please follow these steps:
+
+1. **Automatic Cleanup**: You no longer need to call `h.Cleanup()` manually. It is automatically registered with `t.Cleanup()`.
+2. **Unified Entrypoint**: `testkit.New(t)` is the primary constructor, but `NewUnitHarness` and `NewIntegrationHarness` are preserved as semantic aliases.
+3. **Browser Harness**: `testkit.NewBrowserHarness` remains available but now uses the unified `New` internally.
+
+## 7. Running Tests
 To run all tests in the repository:
 ```bash
 go test ./...
@@ -52,7 +75,7 @@ Or use the SCG helper:
 ./scg doctor:all
 ```
 
-## 7. Standards & Decisions
+## 8. Standards & Decisions
 This library follows the [SCG Library Standards](Docs/LIBRARY_REPO_STRUCTURE.md).
 
 - **Documentation**: [Docs/](Docs/)

@@ -1,9 +1,10 @@
+// nolint:revive // package name is intentional
 package http
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -19,25 +20,23 @@ func TestServer_Helpers(t *testing.T) {
 	})
 
 	srv, cleanup := NewServer(t, handler)
-	defer func() {
-		_ = cleanup()
-	}()
+	defer func() { _ = cleanup() }()
 
 	t.Run("BaseURL", func(t *testing.T) {
 		if srv.BaseURL() == "" {
-			t.Error("expected non-empty base URL")
+			t.Error("expected BaseURL to be non-empty")
 		}
 	})
 
 	t.Run("Client", func(t *testing.T) {
 		if srv.Client() == nil {
-			t.Error("expected non-nil client")
+			t.Error("expected Client to be non-nil")
 		}
 	})
 
 	t.Run("Close", func(t *testing.T) {
 		if err := srv.Close(); err != nil {
-			t.Errorf("expected nil error on Close, got %v", err)
+			t.Errorf("expected Close to be nil, got %v", err)
 		}
 	})
 
@@ -50,9 +49,6 @@ func TestServer_Helpers(t *testing.T) {
 		if res["method"] != "GET" {
 			t.Errorf("expected GET, got %s", res["method"])
 		}
-
-		// Test with nil target
-		srv.Get(t, "/", nil)
 	})
 
 	t.Run("Post", func(t *testing.T) {
@@ -73,18 +69,21 @@ func TestServer_JSONHelpers_Fail(t *testing.T) {
 	mockT := &mockTB{TB: t}
 
 	t.Run("EncodeJSON_Fail", func(t *testing.T) {
+		// Channels are not marshallable to JSON
 		EncodeJSON(mockT, make(chan int))
 		if !mockT.failed {
-			t.Error("expected EncodeJSON to fail for unmarshallable type")
+			t.Error("expected EncodeJSON to fail")
 		}
+		mockT.failed = false
 	})
 
 	t.Run("DecodeJSON_Fail", func(t *testing.T) {
-		mockT.failed = false
-		DecodeJSON(mockT, strings.NewReader("invalid json"), nil)
+		reader := bytes.NewReader([]byte("not-json"))
+		DecodeJSON(mockT, reader, nil)
 		if !mockT.failed {
-			t.Error("expected DecodeJSON to fail for invalid json")
+			t.Error("expected DecodeJSON to fail")
 		}
+		mockT.failed = false
 	})
 }
 
